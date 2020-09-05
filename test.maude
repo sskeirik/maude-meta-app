@@ -1,0 +1,23 @@
+load metaApplication.maude
+
+mod TEST is
+  pr META-APPLICATION .
+
+  sort State .
+  op wrapConfig : Configuration -> State [ctor] .
+
+  op app : -> Oid [ctor] .
+  op App : -> Cid [ctor] .
+  op waiting : Oid Qid -> ApplicationState [ctor] .
+
+  var interpreter : Oid .
+  var EntryModule : Qid .
+  var Atts : AttributeSet .
+
+  rl < app : App | appState(ready(interpreter, EntryModule)), Atts >
+  => < app : App | appState(waiting(interpreter, EntryModule)), Atts >
+     --- reduceTerm(interpreter, app, EntryModule, '_+_['s_^2['0.Nat], 's_^3['0.Nat]]) .
+     showModule(interpreter, app, 'NAT, false) .
+endm
+
+erew wrapConfig(initApplication(app, App, 'NAT, prelude)) .

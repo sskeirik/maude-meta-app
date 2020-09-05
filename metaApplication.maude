@@ -1,0 +1,174 @@
+load metaInterpreter.maude
+
+mod UNIT-ID-LIST is
+  pr EXT-BOOL .
+  pr QID .
+  pr META-MODULE .
+
+  sort ModuleId ViewId UnitId UnitIdList .
+  subsort ModuleId ViewId < UnitId < UnitIdList .
+  op __ : UnitIdList UnitIdList -> UnitIdList [ctor assoc id: .UnitIdList] .
+  op .UnitIdList : -> UnitIdList [ctor] .
+
+  op module_    : Sort                  -> ModuleId [ctor] .
+  op module_as_ : Sort ModuleExpression -> ModuleId [ctor] .
+  op view_      : Sort                  -> ViewId   [ctor] .
+  op view_as_   : Sort ViewExpression   -> ViewId   [ctor] .
+
+  op prelude : -> UnitIdList .
+  eq prelude = module 'TRUTH-VALUE  module 'BOOL-OPS  module 'TRUTH  module 'BOOL  module 'EXT-BOOL
+               module 'NAT          module 'INT       module 'RAT    module 'FLOAT module 'STRING
+               module 'CONVERSION   module 'RANDOM    module 'BOUND  module 'QID   module 'TRIV
+               view 'Bool  view 'Nat  view 'Int  view 'Rat  view 'Float  view 'String  view 'Qid
+               module 'STRICT-WEAK-ORDER  view 'STRICT-WEAK-ORDER
+               module 'STRICT-TOTAL-ORDER  view 'STRICT-TOTAL-ORDER
+               view 'Nat<  view 'Int<  view 'Rat<  view 'Float<  view 'String<
+               module 'TOTAL-PREORDER  view 'TOTAL-PREORDER
+               module 'TOTAL-ORDER  view 'TOTAL-ORDER
+               view 'Nat<=  view 'Int<=  view 'Rat<=  view 'Float<=  view 'String<=
+               module 'DEFAULT  view 'DEFAULT
+               view 'Nat0  view 'Int0  view 'Rat0  view 'Float0  view 'String0  view 'Qid0
+               module 'LIST
+               module 'WEAKLY-SORTABLE-LIST  module 'SORTABLE-LIST
+               module 'WEAKLY-SORTABLE-LIST'  module 'SORTABLE-LIST'
+               module 'SET  module 'LIST-AND-SET
+               module 'SORTABLE-LIST-AND-SET  module 'SORTABLE-LIST-AND-SET'
+               module 'LIST*  module 'SET*  module 'MAP  module 'ARRAY
+               module 'NAT-LIST  module 'QID-LIST  module 'QID-SET
+               module 'META-TERM  module 'META-CONDITION  module 'META-STRATEGY
+               module 'META-MODULE  module 'META-VIEW  module 'META-LEVEL
+               module 'LEXICAL  module 'COUNTER  module 'LOOP-MODE  module 'CONFIGURATION .
+
+  var U U' : UnitId .
+  var UL : UnitIdList .
+  var Name : Sort .
+  var ModExp : ModuleExpression .
+  var ViewExp : ViewExpression .
+
+  op _inUnits_  : UnitId UnitIdList -> Bool .
+  op _inUnits'_ : UnitId UnitIdList -> Bool .
+  -------------------------------------------
+  eq U inUnits   UL         = toBasicUnit(U) inUnits' UL .
+  eq U inUnits'  U' UL      = U == toBasicUnit(U') or-else U inUnits' UL .
+  eq U inUnits' .UnitIdList = false .
+
+  op toBasicUnit : UnitId -> UnitId .
+  -----------------------------------
+  eq toBasicUnit(module Name)            = module Name .
+  eq toBasicUnit(  view Name)            =   view Name .
+  eq toBasicUnit(module Name as ModExp ) = module Name .
+  eq toBasicUnit(  view Name as ViewExp) =   view Name .
+
+  op uniqueAppend : UnitIdList UnitId -> UnitIdList .
+  ---------------------------------------------------
+  eq uniqueAppend(UL, U) = if U inUnits UL then UL else UL U fi .
+endm
+
+fmod UNIT-EXPRESSION-LIST is
+  pr META-MODULE .
+
+  sort ExpressionList ModuleExpressionList ViewExpressionList .
+  subsort Expression       < ExpressionList .
+  subsort ModuleExpression < ModuleExpressionList .
+  subsort ViewExpression   < ViewExpressionList .
+  subsort ExpressionList   < ModuleExpressionList ViewExpressionList .
+
+  op _$_ : ExpressionList ExpressionList -> ExpressionList [ctor assoc id: .ExpressionList] .
+  op _$_ : ModuleExpressionList ModuleExpressionList -> ModuleExpressionList [ctor ditto] .
+  op _$_ : ViewExpressionList ViewExpressionList -> ViewExpressionList [ctor ditto] .
+  op .ExpressionList : -> ExpressionList [ctor] .
+endfm
+
+---(
+fmod UNIT-TYPE is
+  pr META-MODULE .
+
+  sort UnitType .
+  ---------------
+  op module : ModuleExpressionList -> UnitType .
+  op   view : ViewExpressionList   -> UnitType .
+
+  op parameterListToModuleExpressionList : ParamterList -> 
+endfm
+
+fmod UNIT-ID-MAP is
+  pr UNIT-ID-LIST .
+  pr LIST{ModuleExpression} .
+  pr MAP{Sort}
+
+  sort UnitMap .
+  op _|->_ : Sort UnitType .
+endfm
+---)
+
+
+mod META-APPLICATION is
+  pr META-INTERPRETER .
+  pr UNIT-ID-LIST .
+
+  --- entry point to our application
+  --- 1. application manager object id
+  --- 2. application manager class id
+  --- 3. entry module name as quoted identifier
+  --- 4. modules/views to be loaded as unit id list
+  op initApplication : Qid UnitIdList -> Configuration [ctor] .
+
+  --- application state sort
+  sort ApplicationState .
+  op uninitialized : Qid UnitIdList -> ApplicationState [ctor] .
+  op initializing  : Oid Qid UnitIdList -> ApplicationState [ctor] .
+  op ready         : Oid Qid -> ApplicationState [ctor] .
+
+  --- application state attribute
+  op appState : ApplicationState -> Attribute [ctor] .
+
+  --- insert unit message
+  op insertUnit : Oid Oid UnitId -> Msg [ctor] .
+
+  op main : -> Oid .
+  op Main : -> Cid .
+  var Atts : AttributeSet .
+
+  var interpreter interpreter' : Oid .
+  var interpreterMan : Oid .
+
+  var EntryModule : Qid .
+  var UnitName : Qid .
+
+  var Unit : UnitId .
+  var UnitsToLoad : UnitIdList .
+
+  --- Create interpreter
+  --------------------------------------------------------
+  rl initApplication(EntryModule, UnitsToLoad)
+  => <> < main : Main | appState(uninitialized(EntryModule, uniqueAppend(UnitsToLoad, module(EntryModule)))) >
+     createInterpreter(interpreterManager, main, none) .
+
+  rl < main : Main | appState(uninitialized(EntryModule, Unit UnitsToLoad)), Atts >
+     createdInterpreter(main, interpreterMan, interpreter)
+  => < main : Main | appState(initializing(interpreter, EntryModule, UnitsToLoad)), Atts >
+     insertUnit(interpreter, main, Unit) .
+
+  --- Load units
+  ----------------------------------------------------------------------------------------------
+  rl < main : Main | appState(initializing(interpreter,  EntryModule, Unit UnitsToLoad)), Atts >
+     insertedModule(main, interpreter')
+  => < main : Main | appState(initializing(interpreter', EntryModule,      UnitsToLoad)), Atts >
+     insertUnit(interpreter', main, Unit) .
+
+  rl < main : Main | appState(initializing(interpreter,  EntryModule, Unit UnitsToLoad)), Atts >
+     insertedView(main, interpreter')
+  => < main : Main | appState(initializing(interpreter', EntryModule,      UnitsToLoad)), Atts >
+     insertUnit(interpreter', main, Unit) .
+
+  --- Setup unit insertion messages
+  ------------------------------------------------------------------------------------------------------------------
+  rl insertUnit(interpreter, main, module(UnitName)) => insertModule(interpreter, main, upModule(UnitName, false)) .
+  rl insertUnit(interpreter, main,   view(UnitName)) =>   insertView(interpreter, main,   upView(UnitName)       ) .
+
+  --- Finish initialization
+  ----------------------------------------------------------------------------------------
+  rl < main : Main | appState(initializing(interpreter, EntryModule, .UnitIdList)), Atts >
+     insertedModule(main, interpreter')
+  => < main : Main | appState(ready(interpreter', EntryModule)), Atts > .
+endm
